@@ -42,12 +42,12 @@ void append_to(struct job **head_pointer, int arrival, int length, int tickets){
     else{
         struct job* temp = *head_pointer;
         while(temp->next != NULL){
-        temp = temp->next;
+            temp = temp->next;
         }
         temp->next = newJob;
     }
     return;
-    };
+};
 
 
 void read_job_config(const char* filename)
@@ -92,7 +92,7 @@ void policy_SJF()
     printf("Execution trace with SJF:\n");
     int time = 0;
     int finished = 0;
-    
+
     if(head && head->arrival > 0) time = head->arrival;
 
     for(struct job*p = head; p; p = p->next) p->checked = 0;
@@ -189,10 +189,53 @@ void policy_LT(int slice)
 }
 
 
+/* =========================
+   Implemented: FIFO policy
+   ========================= */
 void policy_FIFO(){
     printf("Execution trace with FIFO:\n");
 
-    // TODO: implement FIFO policy
+    int time = 0;
+    int finished = 0;
+
+    if(head && head->arrival > 0) time = head->arrival;
+
+    for(struct job*p = head; p; p = p->next) p->checked = 0;
+
+    while(finished < numofjobs){
+        // pick the earliest arrived job among those not yet run
+        struct job *best = NULL;
+        for(struct job*p = head; p; p = p->next){
+            if(!p->checked && p->arrival <= time){
+                if(!best || p->arrival < best->arrival || 
+                   (p->arrival == best->arrival && p->id < best->id)){
+                    best = p;
+                }
+            }
+        }
+
+        // if nothing has arrived yet, jump to the next arrival
+        if(!best){
+            int next_arrival = INT_MAX;
+            for(struct job*p = head; p; p = p->next){
+                if(!p->checked && p->arrival < next_arrival){
+                    next_arrival = p->arrival;
+                }
+            }
+            if(next_arrival == INT_MAX) break;
+            time = next_arrival;
+            continue;
+        }
+
+        printf("t=%d: [Job %d] arrived at [%d], ran for: [%d]\n",
+               time, best->id, best->arrival, best->length);
+
+        best->startTime = time;
+        time += best->length;
+        best->completion = time;
+        best->checked = 1;
+        finished++;
+    }
 
     printf("End of execution with FIFO.\n");
 }
@@ -212,7 +255,7 @@ int main(int argc, char **argv){
     {
         fprintf(stderr, "missing variables\n");
         fprintf(stderr, usage, argv[0]);
-		exit(1);
+        exit(1);
     }
 
     // if 0, we don't analysis the performance
@@ -232,7 +275,8 @@ int main(int argc, char **argv){
     if (strcmp(pname, "FIFO") == 0){
         policy_FIFO();
         if (analysis == 1){
-            // TODO: perform analysis
+            // analysis_SJF computes generic non preemptive metrics already stored by the policy
+            analysis_SJF();
         }
     }
     else if (strcmp(pname, "SJF") == 0)
@@ -255,5 +299,5 @@ int main(int argc, char **argv){
         // TODO
     }
 
-	exit(0);
+    exit(0);
 }
