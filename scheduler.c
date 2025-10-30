@@ -6,13 +6,12 @@
 #include <limits.h>
 #include <time.h>
 
-#define min(a, b) (((a) < (b)) ? (a) : (b))
+#define min(a,b) (((a)<(b))?(a):(b))
 
 // total jobs
 int numofjobs = 0;
 
-struct job
-{
+struct job {
     // job id is ordered by the arrival; jobs arrived first have smaller job id, always increment by 1
     int id;
     int arrival; // arrival time; safely assume the time unit has the minimal increment of 1
@@ -21,47 +20,48 @@ struct job
     int checked;
     int startTime;
     int completion;
+    int waitTime;
     struct job *next;
 };
 
 // the workload list
 struct job *head = NULL;
 
-void append_to(struct job **head_pointer, int arrival, int length, int tickets)
-{
-    struct job *newJob = malloc(sizeof(struct job));
+
+void append_to(struct job **head_pointer, int arrival, int length, int tickets){
+    struct job* newJob = malloc(sizeof(struct job));
     newJob->arrival = arrival;
     newJob->length = length;
     newJob->tickets = tickets;
     newJob->checked = 0;
+    newJob->waitTime = 0;
+    newJob->startTime = -1;
     newJob->next = NULL;
     newJob->id = numofjobs;
     numofjobs++;
-    if (*head_pointer == NULL)
-    {
+    if(*head_pointer == NULL){
         *head_pointer = newJob;
     }
-    else
-    {
-        struct job *temp = *head_pointer;
-        while (temp->next != NULL)
-        {
-            temp = temp->next;
+    else{
+        struct job* temp = *head_pointer;
+        while(temp->next != NULL){
+        temp = temp->next;
         }
         temp->next = newJob;
     }
     return;
-};
+    };
 
-void read_job_config(const char *filename)
+
+void read_job_config(const char* filename)
 {
     FILE *fp;
     char *line = NULL;
     size_t len = 0;
     ssize_t read;
-    int tickets = 0;
+    int tickets  = 0;
 
-    char *delim = ",";
+    char* delim = ",";
     char *arrival = NULL;
     char *length = NULL;
 
@@ -73,8 +73,8 @@ void read_job_config(const char *filename)
     // TODO: if the file is empty, we should just exit with error
     while ((read = getline(&line, &len, fp)) != -1)
     {
-        if (line[read - 1] == '\n')
-            line[read - 1] = 0;
+        if( line[read-1] == '\n' )
+            line[read-1] =0;
         arrival = strtok(line, delim);
         length = strtok(NULL, delim);
         tickets += 100;
@@ -82,57 +82,46 @@ void read_job_config(const char *filename)
         append_to(&head, atoi(arrival), atoi(length), tickets);
     }
     fclose(fp);
-    if (line)
-        free(line);
-    if (numofjobs == 0)
-    {
+    if (line) free(line);
+    if(numofjobs == 0){
         printf("\nFile Empty");
         exit(1);
     }
 }
+
 
 void policy_SJF()
 {
     printf("Execution trace with SJF:\n");
     int time = 0;
     int finished = 0;
+    
+    if(head && head->arrival > 0) time = head->arrival;
 
-    if (head && head->arrival > 0)
-        time = head->arrival;
+    for(struct job*p = head; p; p = p->next) p->checked = 0;
 
-    for (struct job *p = head; p; p = p->next)
-        p->checked = 0;
-
-    while (finished < numofjobs)
-    {
+    while(finished < numofjobs){
         struct job *best = NULL;
-        for (struct job *p = head; p; p = p->next)
-        {
-            if (!p->checked && p->arrival <= time)
-            {
-                if (!best || p->length < best->length)
-                {
+        for(struct job*p = head; p; p = p->next){
+            if(!p->checked && p->arrival <= time){
+                if(!best || p->length < best->length){
                     best = p;
                 }
             }
         }
         // if not arrived job is free move to next arrival
-        if (!best)
-        {
+        if(!best){
             int next_arrival = INT_MAX;
-            for (struct job *p = head; p; p = p->next)
-            {
-                if (!p->checked && p->arrival < next_arrival)
-                {
+            for(struct job*p = head; p; p = p->next){
+                if(!p->checked && p->arrival < next_arrival){
                     next_arrival = p->arrival;
                 }
             }
-            if (next_arrival == INT_MAX)
-                break;
+            if(next_arrival == INT_MAX) break;
             time = next_arrival;
             continue;
         }
-        printf("t=%d: [Job %d] arrived at [%d], ran for: [%d]\n", time, best->id, best->arrival, best->length);
+        printf("t=%d: [Job %d] arrived at [%d], ran for: [%d]\n",time, best->id, best->arrival, best->length);
         best->startTime = time;
         time += best->length;
         best->completion = time;
@@ -140,6 +129,7 @@ void policy_SJF()
         finished++;
     }
     printf("End of execution with SJF.\n");
+
 }
 
 void analysis_SJF()
@@ -147,18 +137,19 @@ void analysis_SJF()
     printf("Begin analyzing SJF:\n");
     double avgRT = 0;
     double avgTA = 0;
-    for (struct job *p = head; p; p = p->next)
-    {
+    for(struct job*p = head; p; p = p->next){
         int response_time = p->startTime - p->arrival;
         int turnaround = p->completion - p->arrival;
-        int wait = response_time; // same for non-pre-emptive
-        avgRT += response_time;
+        int wait = response_time; //same for non-pre-emptive
+        avgRT+= response_time;
         avgTA += turnaround;
         printf("Job %d -- Response time: %d  Turnaround: %d  Wait: %d\n", p->id, response_time, turnaround, wait);
     }
-    printf("Average -- Response: %.2f  Turnaround %.2f  Wait %.2f\n", avgRT / numofjobs, avgTA / numofjobs, avgRT / numofjobs);
+    printf("Average -- Response: %.2f  Turnaround %.2f  Wait %.2f\n", avgRT/numofjobs, avgTA/numofjobs, avgRT/numofjobs);
     printf("End analyzing SJF.\n");
 }
+
+
 
 void policy_STCF()
 {
@@ -168,6 +159,7 @@ void policy_STCF()
 
     printf("End of execution with STCF.\n");
 }
+
 
 void policy_RR(int slice)
 {
@@ -283,70 +275,132 @@ void analysis_RR()
     printf("End analyzing RR.\n");
 }
 
+
 void policy_LT(int slice)
 {
     printf("Execution trace with LT:\n");
 
     // Leave this here, it will ensure the scheduling behavior remains deterministic
     srand(42);
+    
+    int tickets = 100;
+    int total_tickets = 0;
+    int finished = 0;
+    int time =0;
+    if(head && head->arrival > 0) time = head->arrival;
 
-    // In the following, you'll need to:
-    // Figure out which active job to run first
-    // Pick the job with the shortest remaining time
-    // Considers jobs in order of arrival, so implicitly breaks ties by choosing the job with the lowest ID
+    for(struct job*p = head; p; p = p->next){
+        p->tickets = tickets;
+        total_tickets += tickets;
+        tickets += 100;
+    }
 
-    // To achieve consistency with the tests, you are encouraged to choose the winning ticket as follows:
-    // int winning_ticket = rand() % total_tickets;
-    // And pick the winning job using the linked list approach discussed in class, or equivalent
+    while (finished < numofjobs) {
+        //check tickets incase job has been completed
+        int total_tickets_run = 0;
+        for (struct job *p = head; p; p = p->next) {
+            if (!p->checked && p-> arrival <= time) total_tickets_run += p->tickets;
+        }
 
+        //skip gaps between jobs
+        if (total_tickets_run == 0) {
+            int next_arrival = INT_MAX;
+            for (struct job *p = head; p; p = p->next) {
+                if (!p->checked && p->arrival > time && p->arrival < next_arrival) {
+                    next_arrival = p->arrival;
+                }
+            }
+            if (next_arrival == INT_MAX) break; 
+            time = next_arrival;               
+            continue;
+        }
+
+        int winning_ticket = rand() % total_tickets_run;
+
+        //find winner among incomplete jobs
+        int counter = 0;
+        struct job *winner = NULL;
+        for (struct job *p = head; p; p = p->next) {
+            if (p->checked || p->arrival > time) continue;
+            counter += p->tickets;
+            if (counter > winning_ticket) {
+                winner = p;
+                break;
+            }
+        }
+        if (!winner) continue;
+        if(winner->startTime == -1) winner->startTime = time;
+        
+        //Accrue wait time for other jobs
+        for (struct job *p = head; p; p = p->next) {
+            if (p == winner) continue;
+            if (!p->checked && p->arrival <= time) {
+                p->waitTime += slice;
+            }
+        }
+        printf("t=%d: [Job %d] arrived at [%d], ran for: [%d]\n",
+            time, winner->id, winner->arrival, slice);
+        winner->length -= slice;
+        time += slice;
+        if (winner->length <= 0) {
+            winner->checked = 1;
+            finished += 1;
+            winner->completion = time;
+        }
+    }
     printf("End of execution with LT.\n");
+
 }
 
-/* =========================
-   Implemented: FIFO policy
-   ========================= */
-void policy_FIFO()
-{
+void analysis_lt(){
+    printf("Begin analyzing LT:\n");
+    double avgRT = 0;
+    double avgTA = 0;
+    double avgW = 0;
+    for(struct job*p = head; p; p = p->next){
+        int response_time = p->startTime - p->arrival;
+        int turnaround = p->completion - p->arrival;
+        int wait = p->waitTime;
+        avgRT+= response_time;
+        avgTA += turnaround;
+        avgW += wait;
+        printf("Job %d -- Response time: %d  Turnaround: %d  Wait: %d\n", p->id, response_time, turnaround, wait);
+    }
+    printf("Average -- Response: %.2f  Turnaround %.2f  Wait %.2f\n", avgRT/numofjobs, avgTA/numofjobs, avgW/numofjobs);
+    printf("End analyzing LT.\n");
+}
+
+void policy_FIFO(){
     printf("Execution trace with FIFO:\n");
 
     int time = 0;
     int finished = 0;
 
-    if (head && head->arrival > 0)
-        time = head->arrival;
+    if(head && head->arrival > 0) time = head->arrival;
 
-    for (struct job *p = head; p; p = p->next)
-        p->checked = 0;
+    for(struct job*p = head; p; p = p->next) p->checked = 0;
 
-    while (finished < numofjobs)
-    {
+    while(finished < numofjobs){
         // pick the earliest arrived job among those not yet run
         struct job *best = NULL;
-        for (struct job *p = head; p; p = p->next)
-        {
-            if (!p->checked && p->arrival <= time)
-            {
-                if (!best || p->arrival < best->arrival ||
-                    (p->arrival == best->arrival && p->id < best->id))
-                {
+        for(struct job*p = head; p; p = p->next){
+            if(!p->checked && p->arrival <= time){
+                if(!best || p->arrival < best->arrival || 
+                   (p->arrival == best->arrival && p->id < best->id)){
                     best = p;
                 }
             }
         }
 
         // if nothing has arrived yet, jump to the next arrival
-        if (!best)
-        {
+        if(!best){
             int next_arrival = INT_MAX;
-            for (struct job *p = head; p; p = p->next)
-            {
-                if (!p->checked && p->arrival < next_arrival)
-                {
+            for(struct job*p = head; p; p = p->next){
+                if(!p->checked && p->arrival < next_arrival){
                     next_arrival = p->arrival;
                 }
             }
-            if (next_arrival == INT_MAX)
-                break;
+            if(next_arrival == INT_MAX) break;
             time = next_arrival;
             continue;
         }
@@ -364,8 +418,8 @@ void policy_FIFO()
     printf("End of execution with FIFO.\n");
 }
 
-int main(int argc, char **argv)
-{
+
+int main(int argc, char **argv){
 
     static char usage[] = "usage: %s analysis policy slice trace\n";
 
@@ -374,11 +428,12 @@ int main(int argc, char **argv)
     char *tname;
     int slice;
 
+
     if (argc < 5)
     {
         fprintf(stderr, "missing variables\n");
         fprintf(stderr, usage, argv[0]);
-        exit(1);
+		exit(1);
     }
 
     // if 0, we don't analysis the performance
@@ -395,20 +450,16 @@ int main(int argc, char **argv)
 
     read_job_config(tname);
 
-    if (strcmp(pname, "FIFO") == 0)
-    {
+    if (strcmp(pname, "FIFO") == 0){
         policy_FIFO();
-        if (analysis == 1)
-        {
-            // analysis_SJF computes generic non preemptive metrics already stored by the policy
-            analysis_SJF();
+        if (analysis == 1){
+            // TODO: perform analysis
         }
     }
     else if (strcmp(pname, "SJF") == 0)
     {
         policy_SJF();
-        if (analysis == 1)
-        {
+        if(analysis == 1){
             analysis_SJF();
         }
     }
@@ -424,11 +475,13 @@ int main(int argc, char **argv)
             analysis_RR();
         }
     }
-
     else if (strcmp(pname, "LT") == 0)
     {
-        // TODO
+        policy_LT(slice);
+        if(analysis == 1){
+            analysis_lt();
+        }
     }
 
-    exit(0);
+	exit(0);
 }
