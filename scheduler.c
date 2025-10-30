@@ -253,6 +253,36 @@ void policy_RR(int slice)
     printf("End of execution with RR.\n");
 }
 
+void analysis_RR()
+{
+    printf("Begin analyzing RR:\n");
+
+    double total_response = 0;
+    double total_turnaround = 0;
+    double total_wait = 0;
+
+    for (struct job *p = head; p; p = p->next)
+    {
+        int response = p->startTime - p->arrival;
+        int turnaround = p->completion - p->arrival;
+        int wait = turnaround - p->length;
+
+        total_response += response;
+        total_turnaround += turnaround;
+        total_wait += wait;
+
+        printf("Job %d -- Response time: %d  Turnaround: %d  Wait: %d\n",
+               p->id, response, turnaround, wait);
+    }
+
+    printf("Average -- Response: %.2f  Turnaround %.2f  Wait %.2f\n",
+           total_response / numofjobs,
+           total_turnaround / numofjobs,
+           total_wait / numofjobs);
+
+    printf("End analyzing RR.\n");
+}
+
 void policy_LT(int slice)
 {
     printf("Execution trace with LT:\n");
@@ -391,7 +421,7 @@ int main(int argc, char **argv)
         policy_RR(slice);
         if (analysis == 1)
         {
-            analysis_SJF(); // reuse analysis for RR
+            analysis_RR();
         }
     }
 
